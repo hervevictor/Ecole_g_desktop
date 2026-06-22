@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# Environnement virtuel
+venv/
+.venv/
+env/
+.env/
+ENV/
+
+# PyInstaller
+dist/
+build/
+*.spec
+
+# Base de données (données locales)
+g_ecole.db
+
+# Photos de profil utilisateurs
+assets/avatars/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
