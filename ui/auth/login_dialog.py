@@ -12,7 +12,7 @@ class LoginDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("G-École — Connexion")
-        self.setFixedSize(820, 510)
+        self.setFixedSize(820, 580)
         self.setWindowFlags(Qt.Dialog | Qt.WindowTitleHint)
         self.utilisateur = None
         self._build_ui()
@@ -62,17 +62,17 @@ class LoginDialog(QDialog):
         left = QWidget()
         left.setStyleSheet("background: white;")
         ll = QVBoxLayout(left)
-        ll.setContentsMargins(52, 40, 52, 32)
+        ll.setContentsMargins(50, 30, 50, 24)
         ll.setSpacing(0)
 
         icon_lbl = QLabel("🎓")
         icon_lbl.setAlignment(Qt.AlignCenter)
-        icon_lbl.setStyleSheet("font-size: 42px;")
+        icon_lbl.setStyleSheet("font-size: 38px;")
         ll.addWidget(icon_lbl)
-        ll.addSpacing(6)
+        ll.addSpacing(4)
 
         title = QLabel("G-École")
-        title.setStyleSheet("color: #1a365d; font-size: 24px; font-weight: bold;")
+        title.setStyleSheet("color: #1a365d; font-size: 22px; font-weight: bold;")
         title.setAlignment(Qt.AlignCenter)
         ll.addWidget(title)
 
@@ -80,7 +80,7 @@ class LoginDialog(QDialog):
         sub.setStyleSheet("color: #718096; font-size: 12px;")
         sub.setAlignment(Qt.AlignCenter)
         ll.addWidget(sub)
-        ll.addSpacing(26)
+        ll.addSpacing(20)
 
         # Username
         lbl_user = QLabel("Nom d'utilisateur")
@@ -90,9 +90,9 @@ class LoginDialog(QDialog):
 
         self.username_input = QLineEdit()
         self.username_input.setPlaceholderText("Entrez votre nom d'utilisateur")
-        self.username_input.setFixedHeight(44)
+        self.username_input.setFixedHeight(42)
         ll.addWidget(self.username_input)
-        ll.addSpacing(14)
+        ll.addSpacing(12)
 
         # Password
         lbl_pass = QLabel("Mot de passe")
@@ -103,10 +103,10 @@ class LoginDialog(QDialog):
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Entrez votre mot de passe")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setFixedHeight(44)
+        self.password_input.setFixedHeight(42)
         self.password_input.returnPressed.connect(self._login)
         ll.addWidget(self.password_input)
-        ll.addSpacing(8)
+        ll.addSpacing(6)
 
         self.show_pass = QCheckBox("Afficher le mot de passe")
         self.show_pass.setStyleSheet("color: #718096; font-size: 12px;")
@@ -116,17 +116,18 @@ class LoginDialog(QDialog):
             )
         )
         ll.addWidget(self.show_pass)
-        ll.addSpacing(14)
+        ll.addSpacing(10)
 
         self.error_label = QLabel()
         self.error_label.setObjectName("error_label")
         self.error_label.setVisible(False)
         self.error_label.setWordWrap(True)
         ll.addWidget(self.error_label)
+        ll.addSpacing(6)
 
         self.btn_login = QPushButton("Se connecter")
         self.btn_login.setObjectName("btn_login")
-        self.btn_login.setFixedHeight(46)
+        self.btn_login.setFixedHeight(44)
         self.btn_login.clicked.connect(self._login)
         ll.addWidget(self.btn_login)
 
