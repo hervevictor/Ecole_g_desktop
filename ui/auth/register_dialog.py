@@ -265,13 +265,15 @@ class RegisterDialog(QDialog):
             self.utilisateur = user
 
             self.success_label.setText(
-                "⏳  Demande envoyée ! Un administrateur doit activer votre compte "
-                "et vous attribuer un rôle avant que vous puissiez vous connecter."
+                "✓  Compte créé ! Vous allez être redirigé vers la connexion…"
             )
             self.success_label.setVisible(True)
             self.error_label.setVisible(False)
             self.btn_register.setEnabled(False)
-            self.btn_cancel.setText("Fermer")
+            self.btn_cancel.setEnabled(False)
+            # Rediriger vers le login après 1.5s
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(1500, self.accept)
 
         except Exception as e:
             session.rollback()

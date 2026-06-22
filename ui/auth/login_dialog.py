@@ -215,16 +215,9 @@ class LoginDialog(QDialog):
         user = session.query(Utilisateur).filter_by(username=username).first()
 
         if user and user.check_password(password):
-            if not user.is_active:
-                self._show_error(
-                    "Votre compte est en attente d'activation.\n"
-                    "Contactez l'administrateur pour activer votre accès."
-                )
-                self.btn_login.setText("Se connecter")
-                self.btn_login.setEnabled(True)
-            else:
-                self.utilisateur = user
-                self.accept()
+            # Accepter même les comptes inactifs — MainWindow gère l'affichage
+            self.utilisateur = user
+            self.accept()
         else:
             self._show_error("Nom d'utilisateur ou mot de passe incorrect.")
             self.password_input.clear()

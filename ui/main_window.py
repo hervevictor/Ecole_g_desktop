@@ -32,11 +32,42 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(MAIN_STYLE)
         self._pages = {}
         self._nav_buttons = {}
-        self._build_ui()
-        # Activer le premier onglet accessible
-        access = ROLE_NAV_ACCESS.get(utilisateur.role, ['dashboard'])
-        first = access[0] if access else 'dashboard'
-        self._switch_page(first)
+
+        if not utilisateur.is_active:
+            self._build_waiting_ui()
+        else:
+            self._build_ui()
+            access = ROLE_NAV_ACCESS.get(utilisateur.role, ['dashboard'])
+            first = access[0] if access else 'dashboard'
+            self._switch_page(first)
+
+    def _build_waiting_ui(self):
+        from ui.waiting_page import WaitingPage
+        self.setMinimumSize(700, 500)
+        self.resize(800, 560)
+        central = QWidget()
+        self.setCentralWidget(central)
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        page = WaitingPage(self.utilisateur)
+        page.demander_verification.connect(self._recharger_apres_activation)
+        page.demander_deconnexion.connect(self._deconnecter_simple)
+        layout.addWidget(page)
+
+    def _recharger_apres_activation(self):
+        self.close()
+        new_window = MainWindow(self.utilisateur)
+        new_window.show()
+        self._new_window = new_window
+
+    def _deconnecter_simple(self):
+        self.close()
+        from ui.auth.login_dialog import LoginDialog
+        login = LoginDialog()
+        if login.exec() and login.utilisateur:
+            new_window = MainWindow(login.utilisateur)
+            new_window.show()
+            self._new_window = new_window
 
     def _build_ui(self):
         central = QWidget()
