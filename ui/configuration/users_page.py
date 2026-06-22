@@ -46,6 +46,19 @@ class UsersTab(QWidget):
         info_layout.addWidget(info_lbl)
         layout.addWidget(info)
 
+        # Bannière comptes en attente (masquée par défaut)
+        self.pending_banner = QFrame()
+        self.pending_banner.setStyleSheet(
+            "background:#fffbeb; border:1px solid #f6ad55; border-radius:8px;"
+        )
+        pb_layout = QHBoxLayout(self.pending_banner)
+        pb_layout.setContentsMargins(14, 10, 14, 10)
+        self.pending_lbl = QLabel()
+        self.pending_lbl.setStyleSheet("color:#744210; font-size:12px; font-weight:bold;")
+        pb_layout.addWidget(self.pending_lbl)
+        self.pending_banner.setVisible(False)
+        layout.addWidget(self.pending_banner)
+
         # Table
         self.table = QTableWidget()
         self.table.setColumnCount(7)
@@ -62,8 +75,19 @@ class UsersTab(QWidget):
 
     def refresh(self):
         session = get_session()
-        users = session.query(Utilisateur).order_by(Utilisateur.role, Utilisateur.nom).all()
+        users = session.query(Utilisateur).order_by(Utilisateur.is_active, Utilisateur.role, Utilisateur.nom).all()
         self.table.setRowCount(0)
+
+        # Bannière comptes en attente
+        pending_count = sum(1 for u in users if not u.is_active)
+        if pending_count:
+            self.pending_lbl.setText(
+                f"⏳  {pending_count} compte(s) en attente d'activation — "
+                "Cliquez sur « Activer » pour donner accès à l'utilisateur."
+            )
+            self.pending_banner.setVisible(True)
+        else:
+            self.pending_banner.setVisible(False)
 
         ROLE_COLORS = {
             'admin':      ('#1a365d', '#ebf8ff'),
@@ -97,18 +121,35 @@ class UsersTab(QWidget):
             self.table.setCellWidget(row, 2, role_badge)
 
             # Active badge
-            actif_lbl = QLabel("  ✓ Actif  " if user.is_active else "  ✗ Inactif  ")
-            actif_lbl.setStyleSheet(
-                "background:#c6f6d5;color:#276749;" if user.is_active
-                else "background:#fed7d7;color:#742a2a;"
-                + "border-radius:8px;font-size:11px;font-weight:bold;padding:2px 6px;"
-            )
+            if user.is_active:
+                actif_lbl = QLabel("  ✓ Actif  ")
+                actif_lbl.setStyleSheet(
+                    "background:#c6f6d5; color:#276749; border-radius:8px;"
+                    "font-size:11px; font-weight:bold; padding:2px 6px;"
+                )
+            else:
+                actif_lbl = QLabel("  ⏳ En attente  ")
+                actif_lbl.setStyleSheet(
+                    "background:#fefcbf; color:#744210; border-radius:8px;"
+                    "font-size:11px; font-weight:bold; padding:2px 6px;"
+                )
             actif_lbl.setAlignment(Qt.AlignCenter)
             self.table.setCellWidget(row, 4, actif_lbl)
 
             # Actions
             actions = QWidget()
             ah = QHBoxLayout(actions); ah.setContentsMargins(3, 2, 3, 2); ah.setSpacing(4)
+
+            # Bouton Activer (visible seulement pour les comptes inactifs)
+            if not user.is_active:
+                btn_activate = QPushButton("Activer")
+                btn_activate.setFixedSize(60, 26)
+                btn_activate.setStyleSheet(
+                    "background:#38a169; color:white; border:none; border-radius:4px;"
+                    "font-size:11px; font-weight:bold;"
+                )
+                btn_activate.clicked.connect(lambda _, uid=user.id: self._activer(uid))
+                ah.addWidget(btn_activate)
 
             btn_edit = QPushButton("Modifier")
             btn_edit.setObjectName("btn_primary"); btn_edit.setFixedSize(65, 26)
@@ -129,6 +170,11 @@ class UsersTab(QWidget):
 
             self.table.setCellWidget(row, 6, actions)
             self.table.setRowHeight(row, 44)
+
+    def _activer(self, user_id):
+        dlg = ActiverCompteDialog(user_id=user_id, parent=self)
+        if dlg.exec():
+            self.refresh()
 
     def _ajouter(self):
         dlg = UserFormDialog(current_user=self.current_user, parent=self)
@@ -155,6 +201,71 @@ class UsersTab(QWidget):
             if u:
                 session.delete(u); session.commit()
                 self.refresh()
+
+
+class ActiverCompteDialog(QDialog):
+    def __init__(self, user_id, parent=None):
+        super().__init__(parent)
+        self.user_id = user_id
+        self.setWindowTitle("Activer un compte")
+        self.setFixedWidth(420)
+        self._build_ui()
+
+    def _build_ui(self):
+        session = get_session()
+        u = session.get(Utilisateur, self.user_id)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(24, 20, 24, 20)
+        layout.setSpacing(14)
+
+        # En-tête
+        header = QLabel("Activation du compte")
+        header.setStyleSheet("font-size:15px; font-weight:bold; color:#1a365d;")
+        layout.addWidget(header)
+
+        info = QLabel(
+            f"Vous allez activer le compte de <b>{u.nom} {u.prenom}</b> "
+            f"(@{u.username}).<br>Choisissez le rôle à lui attribuer."
+        )
+        info.setStyleSheet(
+            "color:#2d3748; font-size:12px; background:#ebf8ff; "
+            "border:1px solid #bee3f8; border-radius:6px; padding:10px;"
+        )
+        info.setWordWrap(True)
+        layout.addWidget(info)
+
+        # Rôle
+        role_lbl = QLabel("Rôle *")
+        role_lbl.setStyleSheet("font-weight:bold; color:#4a5568; font-size:12px;")
+        layout.addWidget(role_lbl)
+
+        self.role_cb = QComboBox()
+        self.role_cb.setFixedHeight(38)
+        for r in ROLES:
+            self.role_cb.addItem(ROLE_LABELS[r], r)
+        layout.addWidget(self.role_cb)
+
+        # Boutons
+        btns = QHBoxLayout(); btns.addStretch()
+        btn_c = QPushButton("Annuler"); btn_c.setObjectName("btn_secondary")
+        btn_c.clicked.connect(self.reject); btns.addWidget(btn_c)
+        btn_ok = QPushButton("✓  Activer le compte"); btn_ok.setObjectName("btn_primary")
+        btn_ok.setStyleSheet(
+            "background:#38a169; color:white; border:none; border-radius:6px;"
+            "padding:8px 16px; font-weight:bold;"
+        )
+        btn_ok.clicked.connect(self._activer); btns.addWidget(btn_ok)
+        layout.addLayout(btns)
+
+    def _activer(self):
+        session = get_session()
+        u = session.get(Utilisateur, self.user_id)
+        if u:
+            u.role = self.role_cb.currentData()
+            u.is_active = True
+            session.commit()
+        self.accept()
 
 
 class UserFormDialog(QDialog):

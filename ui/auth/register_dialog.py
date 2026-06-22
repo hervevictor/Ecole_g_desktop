@@ -1,17 +1,17 @@
 from PySide6.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
-    QPushButton, QFrame, QComboBox
+    QPushButton, QFrame
 )
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from database.connexion import get_session
-from database.models import Utilisateur, ROLES, ROLE_LABELS
+from database.models import Utilisateur
 
 
 class RegisterDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setWindowTitle("G-École — Créer un compte")
-        self.setFixedSize(460, 660)
+        self.setFixedSize(460, 600)
         self.setWindowFlags(Qt.Dialog | Qt.WindowTitleHint)
         self.utilisateur = None
         self._build_ui()
@@ -24,7 +24,12 @@ class RegisterDialog(QDialog):
                 border-radius: 14px;
                 border: 1px solid #e2e8f0;
             }
-            QLineEdit, QComboBox {
+            QFrame#info_box {
+                background-color: #fffbeb;
+                border: 1px solid #f6e05e;
+                border-radius: 8px;
+            }
+            QLineEdit {
                 background-color: #f7fafc;
                 border: 1.5px solid #cbd5e0;
                 border-radius: 8px;
@@ -32,10 +37,7 @@ class RegisterDialog(QDialog):
                 font-size: 14px;
                 color: #2d3748;
             }
-            QLineEdit:focus, QComboBox:focus {
-                border: 2px solid #4299e1;
-                background-color: white;
-            }
+            QLineEdit:focus { border: 2px solid #4299e1; background-color: white; }
             QLabel#field_label { color: #4a5568; font-size: 12px; font-weight: bold; }
             QPushButton#btn_register {
                 background-color: #2b6cb0; color: white;
@@ -57,9 +59,9 @@ class RegisterDialog(QDialog):
                 border-radius: 6px; padding: 8px 12px;
             }
             QLabel#msg_ok {
-                color: #276749; font-size: 12px;
-                background-color: #f0fff4;
-                border: 1px solid #9ae6b4;
+                color: #744210; font-size: 12px;
+                background-color: #fffbeb;
+                border: 1px solid #f6e05e;
                 border-radius: 6px; padding: 8px 12px;
             }
         """)
@@ -79,11 +81,27 @@ class RegisterDialog(QDialog):
         title.setAlignment(Qt.AlignCenter)
         main.addWidget(title)
 
-        sub = QLabel("Remplissez vos informations pour vous inscrire")
+        sub = QLabel("Remplissez vos informations pour faire une demande d'accès")
         sub.setStyleSheet("color: #718096; font-size: 12px;")
         sub.setAlignment(Qt.AlignCenter)
+        sub.setWordWrap(True)
         main.addWidget(sub)
-        main.addSpacing(16)
+        main.addSpacing(14)
+
+        # Info box — rôle attribué par l'admin
+        info_box = QFrame()
+        info_box.setObjectName("info_box")
+        ib = QHBoxLayout(info_box)
+        ib.setContentsMargins(12, 10, 12, 10)
+        info_lbl = QLabel(
+            "🔒  Votre rôle sera défini par l'administrateur. "
+            "Votre compte sera inactif jusqu'à son activation."
+        )
+        info_lbl.setStyleSheet("color: #744210; font-size: 12px;")
+        info_lbl.setWordWrap(True)
+        ib.addWidget(info_lbl)
+        main.addWidget(info_box)
+        main.addSpacing(12)
 
         # Card
         card = QFrame()
@@ -98,12 +116,16 @@ class RegisterDialog(QDialog):
 
         nom_col = QVBoxLayout()
         lbl_nom = QLabel("Nom *"); lbl_nom.setObjectName("field_label")
-        self.nom_input = QLineEdit(); self.nom_input.setPlaceholderText("Votre nom"); self.nom_input.setFixedHeight(42)
+        self.nom_input = QLineEdit()
+        self.nom_input.setPlaceholderText("Votre nom")
+        self.nom_input.setFixedHeight(42)
         nom_col.addWidget(lbl_nom); nom_col.addWidget(self.nom_input)
 
         prenom_col = QVBoxLayout()
         lbl_prenom = QLabel("Prénom"); lbl_prenom.setObjectName("field_label")
-        self.prenom_input = QLineEdit(); self.prenom_input.setPlaceholderText("Votre prénom"); self.prenom_input.setFixedHeight(42)
+        self.prenom_input = QLineEdit()
+        self.prenom_input.setPlaceholderText("Votre prénom")
+        self.prenom_input.setFixedHeight(42)
         prenom_col.addWidget(lbl_prenom); prenom_col.addWidget(self.prenom_input)
 
         row_name.addLayout(nom_col); row_name.addLayout(prenom_col)
@@ -132,15 +154,6 @@ class RegisterDialog(QDialog):
         self.tel_input.setPlaceholderText("+225 XX XX XX XX XX")
         self.tel_input.setFixedHeight(42)
         cl.addWidget(self.tel_input)
-
-        # Rôle
-        lbl_role = QLabel("Rôle *"); lbl_role.setObjectName("field_label")
-        cl.addWidget(lbl_role)
-        self.role_combo = QComboBox()
-        self.role_combo.setFixedHeight(42)
-        for role in ROLES:
-            self.role_combo.addItem(ROLE_LABELS.get(role, role), role)
-        cl.addWidget(self.role_combo)
 
         # Mot de passe
         lbl_pass = QLabel("Mot de passe *"); lbl_pass.setObjectName("field_label")
@@ -184,7 +197,7 @@ class RegisterDialog(QDialog):
         self.btn_cancel.clicked.connect(self.reject)
         btn_row.addWidget(self.btn_cancel)
 
-        self.btn_register = QPushButton("Créer mon compte")
+        self.btn_register = QPushButton("Envoyer ma demande")
         self.btn_register.setObjectName("btn_register")
         self.btn_register.setFixedHeight(42)
         self.btn_register.clicked.connect(self._register)
@@ -199,7 +212,6 @@ class RegisterDialog(QDialog):
         username = self.username_input.text().strip()
         email = self.email_input.text().strip()
         telephone = self.tel_input.text().strip()
-        role = self.role_combo.currentData()
         password = self.password_input.text()
         confirm = self.confirm_input.text()
 
@@ -225,18 +237,23 @@ class RegisterDialog(QDialog):
                 prenom=prenom,
                 email=email,
                 telephone=telephone,
-                role=role,
-                is_active=True,
+                role='parent',      # rôle minimal par défaut
+                is_active=False,    # inactif jusqu'à validation admin
             )
             user.set_password(password)
             session.add(user)
             session.commit()
             self.utilisateur = user
-            self.success_label.setText("✓  Compte créé ! Vous pouvez maintenant vous connecter.")
+
+            self.success_label.setText(
+                "⏳  Demande envoyée ! Un administrateur doit activer votre compte "
+                "et vous attribuer un rôle avant que vous puissiez vous connecter."
+            )
             self.success_label.setVisible(True)
             self.error_label.setVisible(False)
             self.btn_register.setEnabled(False)
-            QTimer.singleShot(1500, self.accept)
+            self.btn_cancel.setText("Fermer")
+
         except Exception as e:
             session.rollback()
             self._show_error(f"Erreur lors de la création : {str(e)}")
