@@ -262,7 +262,11 @@ class ConfigPage(QWidget):
                     for col, val in enumerate([classe.nom, str(nos), nos.titulaire or '—']):
                         self.table_classes.setItem(row2, col, QTableWidgetItem(val))
                     actions = QWidget()
-                    ah = QHBoxLayout(actions); ah.setContentsMargins(2, 1, 2, 1)
+                    ah = QHBoxLayout(actions); ah.setContentsMargins(2, 1, 2, 1); ah.setSpacing(3)
+                    btn_t = QPushButton("✏ Titulaire"); btn_t.setObjectName("btn_secondary")
+                    btn_t.setFixedSize(88, 24)
+                    btn_t.clicked.connect(lambda _, nid=nos.id, cur=nos.titulaire: self._modifier_titulaire(nid, cur))
+                    ah.addWidget(btn_t)
                     btn_d = QPushButton("Suppr."); btn_d.setObjectName("btn_danger"); btn_d.setFixedSize(55, 24)
                     btn_d.clicked.connect(lambda _, nid=nos.id: self._supprimer_nos_classe(nid))
                     ah.addWidget(btn_d)
@@ -343,20 +347,70 @@ class ConfigPage(QWidget):
                 session.delete(nos); session.commit()
                 self._charger_classes()
 
+    def _modifier_titulaire(self, nos_id, current):
+        dlg = TitulaireDialog(current or '', parent=self)
+        if dlg.exec():
+            session = get_session()
+            nos = session.get(NosClasse, nos_id)
+            if nos:
+                nos.titulaire = dlg.get_value()
+                session.commit()
+                self._charger_classes()
+
     # ── Matières ───────────────────────────────────────────────────
     def _build_matieres_tab(self):
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
         w = QWidget()
         layout = QVBoxLayout(w)
         layout.setContentsMargins(15, 10, 15, 10)
-        layout.setSpacing(10)
+        layout.setSpacing(14)
 
-        h = QHBoxLayout()
+        # ── Section : Types de matière ─────────────────────────────
+        lbl_types = QLabel("Types de matière")
+        lbl_types.setStyleSheet("color:#1a365d; font-size:14px; font-weight:bold;")
+        layout.addWidget(lbl_types)
+
+        ht = QHBoxLayout()
+        self.inp_type = QLineEdit()
+        self.inp_type.setPlaceholderText("Ex : Scientifique, Littéraire, Technique…")
+        self.inp_type.setFixedHeight(34)
+        ht.addWidget(self.inp_type)
+        btn_add_type = QPushButton("+ Ajouter")
+        btn_add_type.setObjectName("btn_primary"); btn_add_type.setFixedHeight(34)
+        btn_add_type.clicked.connect(self._ajouter_type_matiere)
+        self.inp_type.returnPressed.connect(self._ajouter_type_matiere)
+        ht.addWidget(btn_add_type)
+        layout.addLayout(ht)
+
+        self.table_types = QTableWidget()
+        self.table_types.setColumnCount(2)
+        self.table_types.setHorizontalHeaderLabels(["Type", "Actions"])
+        self.table_types.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table_types.verticalHeader().setVisible(False)
+        self.table_types.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
+        self.table_types.horizontalHeader().setSectionResizeMode(1, QHeaderView.Fixed)
+        self.table_types.setColumnWidth(1, 80)
+        self.table_types.setMaximumHeight(180)
+        layout.addWidget(self.table_types)
+
+        sep = QFrame(); sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet("background:#e2e8f0; margin:4px 0;"); sep.setFixedHeight(1)
+        layout.addWidget(sep)
+
+        # ── Section : Matières ─────────────────────────────────────
+        lbl_mat = QLabel("Matières")
+        lbl_mat.setStyleSheet("color:#1a365d; font-size:14px; font-weight:bold;")
+        layout.addWidget(lbl_mat)
+
+        hm = QHBoxLayout()
         btn_add = QPushButton("+ Ajouter une matière")
         btn_add.setObjectName("btn_primary"); btn_add.setFixedHeight(34)
         btn_add.clicked.connect(self._ajouter_matiere)
-        h.addWidget(btn_add)
-        h.addStretch()
-        layout.addLayout(h)
+        hm.addWidget(btn_add)
+        hm.addStretch()
+        layout.addLayout(hm)
 
         self.table_matieres = QTableWidget()
         self.table_matieres.setColumnCount(3)
@@ -367,7 +421,52 @@ class ConfigPage(QWidget):
         self.table_matieres.horizontalHeader().setSectionResizeMode(2, QHeaderView.Fixed)
         self.table_matieres.setColumnWidth(2, 100)
         layout.addWidget(self.table_matieres)
-        return w
+
+        scroll.setWidget(w)
+        return scroll
+
+    def _charger_types(self):
+        session = get_session()
+        types = session.query(TypeMatiere).order_by(TypeMatiere.nom).all()
+        self.table_types.setRowCount(0)
+        for t in types:
+            row = self.table_types.rowCount()
+            self.table_types.insertRow(row)
+            self.table_types.setItem(row, 0, QTableWidgetItem(t.nom))
+            actions = QWidget()
+            ah = QHBoxLayout(actions); ah.setContentsMargins(2, 1, 2, 1)
+            btn_d = QPushButton("Suppr."); btn_d.setObjectName("btn_danger"); btn_d.setFixedSize(55, 24)
+            btn_d.clicked.connect(lambda _, tid=t.id: self._supprimer_type_matiere(tid))
+            ah.addWidget(btn_d)
+            self.table_types.setCellWidget(row, 1, actions)
+            self.table_types.setRowHeight(row, 34)
+
+    def _ajouter_type_matiere(self):
+        nom = self.inp_type.text().strip()
+        if not nom:
+            return
+        session = get_session()
+        if session.query(TypeMatiere).filter_by(nom=nom).first():
+            QMessageBox.warning(self, "Erreur", f"Le type « {nom} » existe déjà.")
+            return
+        session.add(TypeMatiere(nom=nom))
+        session.commit()
+        self.inp_type.clear()
+        self._charger_types()
+
+    def _supprimer_type_matiere(self, tid):
+        session = get_session()
+        t = session.get(TypeMatiere, tid)
+        if t and t.matieres:
+            QMessageBox.warning(self, "Impossible",
+                                f"Le type « {t.nom} » est utilisé par {len(t.matieres)} matière(s). "
+                                "Supprimez ou réassignez ces matières d'abord.")
+            return
+        rep = QMessageBox.question(self, "Confirmation", f"Supprimer le type « {t.nom} » ?",
+                                   QMessageBox.Yes | QMessageBox.No)
+        if rep == QMessageBox.Yes:
+            session.delete(t); session.commit()
+            self._charger_types()
 
     def _charger_matieres(self):
         session = get_session()
@@ -390,17 +489,18 @@ class ConfigPage(QWidget):
     def _ajouter_matiere(self):
         session = get_session()
         types = session.query(TypeMatiere).all()
-        type_options = {str(t): t.id for t in types}
         if not types:
-            session.add(TypeMatiere(nom="Général"))
-            session.commit()
-            types = session.query(TypeMatiere).all()
-            type_options = {str(t): t.id for t in types}
+            QMessageBox.warning(self, "Aucun type",
+                                "Créez d'abord un type de matière (ex : Général, Scientifique…).")
+            return
+        type_options = {str(t): t.id for t in types}
         dlg = SelectInputDialog("Ajouter une matière",
                                 "Nom de la matière", "Ex: Mathématiques",
                                 "Type", list(type_options.keys()), parent=self)
         if dlg.exec():
             nom, choix = dlg.get_values()
+            if not nom:
+                return
             session.add(Matiere(nom=nom.strip(), type_matiere_id=type_options[choix]))
             session.commit()
             self._charger_matieres()
@@ -561,12 +661,46 @@ class ConfigPage(QWidget):
             self.etab_num_paiement2.setText(config.numero_paiement_2 or '')
         self._charger_annees()
         self._charger_classes()
+        self._charger_types()
         self._charger_matieres()
         self._charger_periodes()
         self._charger_frais()
 
 
 # ── Dialogs utilitaires ───────────────────────────────────────────
+
+class TitulaireDialog(QDialog):
+    def __init__(self, current='', parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Assigner un titulaire")
+        self.setMinimumWidth(360)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
+
+        lbl = QLabel("Nom du professeur titulaire :")
+        lbl.setStyleSheet("color:#4a5568; font-size:13px;")
+        layout.addWidget(lbl)
+
+        self.inp = QLineEdit(current)
+        self.inp.setPlaceholderText("Ex : M. Dupont")
+        self.inp.setFixedHeight(36)
+        self.inp.returnPressed.connect(self.accept)
+        layout.addWidget(self.inp)
+
+        btns = QHBoxLayout(); btns.addStretch()
+        btn_c = QPushButton("Annuler"); btn_c.setObjectName("btn_secondary")
+        btn_c.clicked.connect(self.reject); btns.addWidget(btn_c)
+        btn_s = QPushButton("Enregistrer"); btn_s.setObjectName("btn_primary")
+        btn_s.clicked.connect(self.accept); btns.addWidget(btn_s)
+        layout.addLayout(btns)
+
+        self.inp.setFocus()
+        self.inp.selectAll()
+
+    def get_value(self):
+        return self.inp.text().strip()
+
 
 class NiveauDialog(QDialog):
     TYPES = [
