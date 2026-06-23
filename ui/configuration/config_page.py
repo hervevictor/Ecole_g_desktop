@@ -269,19 +269,29 @@ class ConfigPage(QWidget):
                     self.table_classes.setCellWidget(row2, 3, actions)
                     self.table_classes.setRowHeight(row2, 38)
 
+    def _guide_annee_active(self):
+        msg = QMessageBox(self)
+        msg.setWindowTitle("Aucune année scolaire active")
+        msg.setText("Vous devez d'abord activer une année scolaire.")
+        msg.setInformativeText(
+            "Allez dans l'onglet « Années scolaires », créez ou activez "
+            "une année pour pouvoir ajouter des niveaux et des classes."
+        )
+        btn_go = msg.addButton("Aller aux années scolaires", QMessageBox.AcceptRole)
+        msg.addButton("Annuler", QMessageBox.RejectRole)
+        msg.exec()
+        if msg.clickedButton() == btn_go:
+            self.tabs.setCurrentIndex(1)
+
     def _ajouter_niveau(self):
-        dlg = SimpleInputDialog("Ajouter un niveau", [
-            ("Nom du niveau", "Ex: Sixième"),
-            ("Type", "COLLEGE ou LYCEE"),
-        ], parent=self)
+        session = get_session()
+        annee = session.query(AnneeScolaire).filter_by(actif=True).first()
+        if not annee:
+            self._guide_annee_active(); return
+        dlg = NiveauDialog(parent=self)
         if dlg.exec():
-            vals = dlg.get_values()
-            session = get_session()
-            annee = session.query(AnneeScolaire).filter_by(actif=True).first()
-            if not annee:
-                QMessageBox.warning(self, "Erreur", "Aucune année active."); return
-            type_niv = vals[1].upper() if vals[1].upper() in ('COLLEGE', 'LYCEE') else 'COLLEGE'
-            session.add(Niveau(nom=vals[0], type_niveau=type_niv, annee_scolaire_id=annee.id))
+            nom, type_niv = dlg.get_values()
+            session.add(Niveau(nom=nom, type_niveau=type_niv, annee_scolaire_id=annee.id))
             session.commit()
             self._charger_classes()
 
@@ -289,7 +299,7 @@ class ConfigPage(QWidget):
         session = get_session()
         annee = session.query(AnneeScolaire).filter_by(actif=True).first()
         if not annee:
-            QMessageBox.warning(self, "Erreur", "Aucune année active."); return
+            self._guide_annee_active(); return
         niveaux = session.query(Niveau).filter_by(annee_scolaire_id=annee.id).all()
         if not niveaux:
             QMessageBox.warning(self, "Erreur", "Créez d'abord un niveau."); return
@@ -308,7 +318,7 @@ class ConfigPage(QWidget):
         session = get_session()
         annee = session.query(AnneeScolaire).filter_by(actif=True).first()
         if not annee:
-            QMessageBox.warning(self, "Erreur", "Aucune année active."); return
+            self._guide_annee_active(); return
         classes = session.query(Classe).filter_by(annee_scolaire_id=annee.id).all()
         if not classes:
             QMessageBox.warning(self, "Erreur", "Créez d'abord des classes."); return
@@ -456,7 +466,7 @@ class ConfigPage(QWidget):
         session = get_session()
         annee = session.query(AnneeScolaire).filter_by(actif=True).first()
         if not annee:
-            QMessageBox.warning(self, "Erreur", "Aucune année active."); return
+            self._guide_annee_active(); return
         dlg = PeriodeDialog(annee.id, parent=self)
         if dlg.exec():
             self._charger_periodes()
@@ -522,7 +532,7 @@ class ConfigPage(QWidget):
         session = get_session()
         annee = session.query(AnneeScolaire).filter_by(actif=True).first()
         if not annee:
-            QMessageBox.warning(self, "Erreur", "Aucune année active."); return
+            self._guide_annee_active(); return
         dlg = FraisDialog(annee.id, parent=self)
         if dlg.exec():
             self._charger_frais()
@@ -557,6 +567,61 @@ class ConfigPage(QWidget):
 
 
 # ── Dialogs utilitaires ───────────────────────────────────────────
+
+class NiveauDialog(QDialog):
+    TYPES = [
+        ("Primaire",  "PRIMAIRE"),
+        ("Collège",   "COLLEGE"),
+        ("Lycée",     "LYCEE"),
+    ]
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Ajouter un niveau")
+        self.setMinimumWidth(380)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(14)
+
+        form = QFormLayout()
+        form.setSpacing(10)
+
+        self.nom_inp = QLineEdit()
+        self.nom_inp.setPlaceholderText("Ex : 6ème, CE2, Terminale…")
+        self.nom_inp.setFixedHeight(36)
+
+        self.type_cb = QComboBox()
+        self.type_cb.setFixedHeight(36)
+        for label, val in self.TYPES:
+            self.type_cb.addItem(label, val)
+
+        form.addRow("Nom du niveau *", self.nom_inp)
+        form.addRow("Type *", self.type_cb)
+        layout.addLayout(form)
+
+        btns = QHBoxLayout()
+        btns.addStretch()
+        btn_c = QPushButton("Annuler")
+        btn_c.setObjectName("btn_secondary")
+        btn_c.clicked.connect(self.reject)
+        btns.addWidget(btn_c)
+        btn_s = QPushButton("OK")
+        btn_s.setObjectName("btn_primary")
+        btn_s.clicked.connect(self._validate)
+        btns.addWidget(btn_s)
+        layout.addLayout(btns)
+
+        self.nom_inp.setFocus()
+
+    def _validate(self):
+        if not self.nom_inp.text().strip():
+            QMessageBox.warning(self, "Erreur", "Le nom du niveau est obligatoire.")
+            return
+        self.accept()
+
+    def get_values(self):
+        return self.nom_inp.text().strip(), self.type_cb.currentData()
+
 
 class SimpleInputDialog(QDialog):
     def __init__(self, title, fields, parent=None):
