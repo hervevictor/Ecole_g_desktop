@@ -3,7 +3,6 @@ from PySide6.QtWidgets import (
     QPushButton, QFrame, QCheckBox, QWidget
 )
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
 from database.connexion import get_session
 from database.models import Utilisateur
 
@@ -18,8 +17,13 @@ class LoginDialog(QDialog):
         self._build_ui()
 
     def _build_ui(self):
+        # Tous les styles ici — NE PAS mettre setStyleSheet sur les panneaux enfants
         self.setStyleSheet("""
             QDialog { background: white; }
+
+            QWidget#panel_left  { background: white; }
+            QWidget#panel_right { background: #1a365d; }
+
             QLineEdit {
                 background-color: #f7fafc;
                 border: 1.5px solid #cbd5e0;
@@ -32,26 +36,76 @@ class LoginDialog(QDialog):
                 border: 2px solid #4299e1;
                 background-color: white;
             }
-            QLabel#field_label {
+            QLabel#lbl_field {
                 color: #4a5568;
                 font-size: 12px;
                 font-weight: bold;
+                background: transparent;
+            }
+            QLabel#lbl_title {
+                color: #1a365d;
+                font-size: 22px;
+                font-weight: bold;
+                background: transparent;
+            }
+            QLabel#lbl_sub {
+                color: #718096;
+                font-size: 12px;
+                background: transparent;
+            }
+            QLabel#lbl_hint {
+                color: #a0aec0;
+                font-size: 10px;
+                background: transparent;
+            }
+            QLabel#lbl_error {
+                color: #c53030;
+                font-size: 12px;
+                background-color: #fff5f5;
+                border: 1px solid #feb2b2;
+                border-radius: 6px;
+                padding: 8px 12px;
             }
             QPushButton#btn_login {
                 background-color: #1a365d;
-                color: white; border: none;
-                border-radius: 8px; padding: 12px;
-                font-size: 14px; font-weight: bold;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
             }
-            QPushButton#btn_login:hover { background-color: #2a4a7f; }
-            QPushButton#btn_login:pressed { background-color: #1a2d4f; }
+            QPushButton#btn_login:hover    { background-color: #2a4a7f; }
+            QPushButton#btn_login:pressed  { background-color: #1a2d4f; }
             QPushButton#btn_login:disabled { background-color: #a0aec0; }
-            QLabel#error_label {
-                color: #c53030; font-size: 12px;
-                background-color: #fff5f5;
-                border: 1px solid #feb2b2;
-                border-radius: 6px; padding: 8px 12px;
+
+            QPushButton#btn_register {
+                background-color: white;
+                color: #1a365d;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
             }
+            QPushButton#btn_register:hover   { background-color: #ebf8ff; }
+            QPushButton#btn_register:pressed { background-color: #bee3f8; }
+
+            QLabel#lbl_right_title {
+                color: white;
+                font-size: 22px;
+                font-weight: bold;
+                background: transparent;
+            }
+            QLabel#lbl_right_desc {
+                color: #90cdf4;
+                font-size: 13px;
+                background: transparent;
+            }
+            QLabel#lbl_right_hint {
+                color: #4a7fa8;
+                font-size: 11px;
+                background: transparent;
+            }
+            QCheckBox { color: #718096; font-size: 12px; background: transparent; }
         """)
 
         root = QHBoxLayout(self)
@@ -60,31 +114,30 @@ class LoginDialog(QDialog):
 
         # ── Panneau gauche : Connexion ─────────────────────────────
         left = QWidget()
-        left.setStyleSheet("background: white;")
+        left.setObjectName("panel_left")   # stylé via QDialog stylesheet
         ll = QVBoxLayout(left)
         ll.setContentsMargins(50, 30, 50, 24)
         ll.setSpacing(0)
 
         icon_lbl = QLabel("🎓")
         icon_lbl.setAlignment(Qt.AlignCenter)
-        icon_lbl.setStyleSheet("font-size: 38px;")
+        icon_lbl.setStyleSheet("font-size: 38px; background: transparent;")
         ll.addWidget(icon_lbl)
         ll.addSpacing(4)
 
         title = QLabel("G-École")
-        title.setStyleSheet("color: #1a365d; font-size: 22px; font-weight: bold;")
+        title.setObjectName("lbl_title")
         title.setAlignment(Qt.AlignCenter)
         ll.addWidget(title)
 
         sub = QLabel("Connexion à votre espace")
-        sub.setStyleSheet("color: #718096; font-size: 12px;")
+        sub.setObjectName("lbl_sub")
         sub.setAlignment(Qt.AlignCenter)
         ll.addWidget(sub)
         ll.addSpacing(20)
 
-        # Username
         lbl_user = QLabel("Nom d'utilisateur")
-        lbl_user.setObjectName("field_label")
+        lbl_user.setObjectName("lbl_field")
         ll.addWidget(lbl_user)
         ll.addSpacing(4)
 
@@ -94,9 +147,8 @@ class LoginDialog(QDialog):
         ll.addWidget(self.username_input)
         ll.addSpacing(12)
 
-        # Password
         lbl_pass = QLabel("Mot de passe")
-        lbl_pass.setObjectName("field_label")
+        lbl_pass.setObjectName("lbl_field")
         ll.addWidget(lbl_pass)
         ll.addSpacing(4)
 
@@ -109,7 +161,6 @@ class LoginDialog(QDialog):
         ll.addSpacing(6)
 
         self.show_pass = QCheckBox("Afficher le mot de passe")
-        self.show_pass.setStyleSheet("color: #718096; font-size: 12px;")
         self.show_pass.toggled.connect(
             lambda c: self.password_input.setEchoMode(
                 QLineEdit.Normal if c else QLineEdit.Password
@@ -119,28 +170,29 @@ class LoginDialog(QDialog):
         ll.addSpacing(10)
 
         self.error_label = QLabel()
-        self.error_label.setObjectName("error_label")
+        self.error_label.setObjectName("lbl_error")
         self.error_label.setVisible(False)
         self.error_label.setWordWrap(True)
         ll.addWidget(self.error_label)
-        ll.addSpacing(6)
+        ll.addSpacing(8)
 
         self.btn_login = QPushButton("Se connecter")
         self.btn_login.setObjectName("btn_login")
         self.btn_login.setFixedHeight(44)
+        self.btn_login.setCursor(Qt.PointingHandCursor)
         self.btn_login.clicked.connect(self._login)
         ll.addWidget(self.btn_login)
 
         ll.addStretch()
 
         hint = QLabel("Compte admin par défaut : admin / admin123")
+        hint.setObjectName("lbl_hint")
         hint.setAlignment(Qt.AlignCenter)
-        hint.setStyleSheet("color: #a0aec0; font-size: 10px;")
         ll.addWidget(hint)
 
         root.addWidget(left, 1)
 
-        # ── Séparateur vertical ────────────────────────────────────
+        # ── Séparateur ─────────────────────────────────────────────
         sep = QFrame()
         sep.setFrameShape(QFrame.VLine)
         sep.setStyleSheet("background: #e2e8f0;")
@@ -149,7 +201,7 @@ class LoginDialog(QDialog):
 
         # ── Panneau droit : Inscription ────────────────────────────
         right = QWidget()
-        right.setStyleSheet("background: #1a365d;")
+        right.setObjectName("panel_right")
         rl = QVBoxLayout(right)
         rl.setContentsMargins(52, 0, 52, 0)
         rl.setSpacing(14)
@@ -157,11 +209,11 @@ class LoginDialog(QDialog):
 
         icon2 = QLabel("✨")
         icon2.setAlignment(Qt.AlignCenter)
-        icon2.setStyleSheet("font-size: 46px;")
+        icon2.setStyleSheet("font-size: 46px; background: transparent;")
         rl.addWidget(icon2)
 
         title2 = QLabel("Nouveau ici ?")
-        title2.setStyleSheet("color: white; font-size: 22px; font-weight: bold;")
+        title2.setObjectName("lbl_right_title")
         title2.setAlignment(Qt.AlignCenter)
         rl.addWidget(title2)
 
@@ -170,29 +222,21 @@ class LoginDialog(QDialog):
             "à toutes les fonctionnalités de G-École\n"
             "et gérer votre espace personnel."
         )
-        desc.setStyleSheet("color: #90cdf4; font-size: 13px;")
+        desc.setObjectName("lbl_right_desc")
         desc.setAlignment(Qt.AlignCenter)
         rl.addWidget(desc)
 
         rl.addSpacing(10)
 
         btn_reg = QPushButton("  Créer un compte")
+        btn_reg.setObjectName("btn_register")
         btn_reg.setFixedHeight(46)
         btn_reg.setCursor(Qt.PointingHandCursor)
-        btn_reg.setStyleSheet("""
-            QPushButton {
-                background: white; color: #1a365d;
-                border: none; border-radius: 8px;
-                font-size: 14px; font-weight: bold;
-            }
-            QPushButton:hover { background: #ebf8ff; }
-            QPushButton:pressed { background: #bee3f8; }
-        """)
         btn_reg.clicked.connect(self._open_register)
         rl.addWidget(btn_reg)
 
         already = QLabel("Vous avez déjà un compte ? Connectez-vous à gauche.")
-        already.setStyleSheet("color: #4a7fa8; font-size: 11px;")
+        already.setObjectName("lbl_right_hint")
         already.setAlignment(Qt.AlignCenter)
         already.setWordWrap(True)
         rl.addWidget(already)
@@ -216,7 +260,6 @@ class LoginDialog(QDialog):
         user = session.query(Utilisateur).filter_by(username=username).first()
 
         if user and user.check_password(password):
-            # Accepter même les comptes inactifs — MainWindow gère l'affichage
             self.utilisateur = user
             self.accept()
         else:
